@@ -47,6 +47,8 @@ import gtk.TextView;
 import gtk.TextBuffer;
 import gtk.ListBox;
 import gtk.CssProvider;
+import gtk.ScrolledWindow;
+import gtk.Paned;
 
 import gdk.Event;
 
@@ -64,7 +66,7 @@ void thrown(Err)(Err e)
         if (nums.length != 0 && nums[$ - 1] == span.first.line)
         {
             times[$ - 1]++;
-        }   
+        }
         else
         {
             nums ~= span.first.line;
@@ -107,18 +109,21 @@ void thrown(Err)(Err e)
     writeln;
 }
 
-void setMarginAll(Widget widget, int size) {
+void setMarginAll(Widget widget, int size)
+{
     widget.setMarginTop(size);
     widget.setMarginBottom(size);
     widget.setMarginLeft(size);
     widget.setMarginRight(size);
 }
 
-TextView text(string src) {
+TextView text(string src)
+{
     TextView ret = new TextView();
+    ret.setRightMargin(8);
     ret.setMonospace(true);
     ret.setEditable(false);
-    ret.getBuffer().setText(" " ~ src ~ " ");
+    ret.getBuffer().setText(src);
     return ret;
 }
 
@@ -142,7 +147,8 @@ Widget dynamicToWidget(Dynamic dyn)
         ListBox ret = new ListBox();
         ret.setMarginLeft(16);
         ret.add(text("[...]"));
-        foreach (ent; dyn.arr) {
+        foreach (ent; dyn.arr)
+        {
             ret.add(ent.dynamicToWidget);
         }
         return ret;
@@ -150,7 +156,8 @@ Widget dynamicToWidget(Dynamic dyn)
         ListBox ret = new ListBox();
         ret.setMarginLeft(16);
         ret.add(text("table {...}"));
-        foreach (key, value; dyn.tab) {
+        foreach (key, value; dyn.tab)
+        {
             Box pair = new Box(Orientation.HORIZONTAL, 0);
             pair.add(key.dynamicToWidget);
             pair.add(text(":"));
@@ -166,42 +173,18 @@ void main(string[] args)
     ctx = enterCtx;
     scope (exit)
         exitCtx;
+    string[] names;
+    foreach (ent; rootBases[ctx])
+    {
+        names ~= ent.name;
+    }
     Main.init(args);
-    MainWindow mainWindow = new MainWindow("Paka");
+    MainWindow window = new MainWindow("Paka");
+    ScrolledWindow mainWindow = new ScrolledWindow();
+    window.add(mainWindow);
     {
         Box mainBox = new Box(Orientation.VERTICAL, 0);
         string textString;
-        {
-            Box inputBox = new Box(Orientation.HORIZONTAL, 0);
-            {
-                Widget repr = new Box(Orientation.VERTICAL, 0);
-                Entry textInput = new Entry();
-                Button runInput = new Button("RUN!");
-                runInput.addOnClicked((Button button) {
-                    string text = textInput.getText();
-                    Dynamic res = Dynamic.nil;
-                    try
-                    {
-                        res = ctx.eval(SrcLoc(1, 1, "__input__", text));
-                    }
-                    catch (Error e)
-                    {
-                        e.thrown;
-                    }
-                    catch (Exception e)
-                    {
-                        e.thrown;
-                    }
-                    mainBox.remove(repr);
-                    repr = res.dynamicToWidget;
-                    mainBox.add(repr);
-                    mainBox.showAll();
-                });
-                inputBox.add(runInput);
-                inputBox.add(textInput);
-            }
-            mainBox.add(inputBox);
-        }
         {
             Box dataBox = new Box(Orientation.VERTICAL, 0);
             {
@@ -218,9 +201,74 @@ void main(string[] args)
             }
             mainBox.add(dataBox);
         }
+        {
+            Box inputBox = new Box(Orientation.HORIZONTAL, 0);
+            Box host = new Box(Orientation.VERTICAL, 0);
+            {
+
+                void setOutput(Args...)(Args args)
+                {
+                    Paned done = new Paned(Orientation.HORIZONTAL);
+                    Dynamic[string] values;
+                    foreach (ent; rootBases[ctx])
+                    {
+                        if (!ent.name.startsWith("_") && !names.canFind(ent.name))
+                        {
+                            values[ent.name] = ent.val;
+                        }
+                    }
+                    Box next = new Box(Orientation.VERTICAL, 0);
+                    foreach (name; values.keys.sort)
+                    {
+                        Box cur = new Box(Orientation.HORIZONTAL, 0);
+                        cur.add(text(name));
+                        cur.add(text(":"));
+                        cur.add(values[name].dynamicToWidget);
+                        next.add(cur);
+                    }
+                    done.pack2(next, true, true);
+                    Box first = new Box(Orientation.VERTICAL, 0);
+                    static foreach (arg; args)
+                    {
+                        first.add(arg);
+                    }
+                    done.pack1(first, true, true);
+                    host.removeAll();
+                    host.add(done);
+                    mainWindow.showAll();
+                }
+
+                setOutput(text(""));
+
+                Entry textInput = new Entry();
+                Button runInput = new Button("RUN!");
+                runInput.addOnClicked((Button button) {
+                    textString = null;
+                    string text = textInput.getText();
+                    Dynamic res = Dynamic.nil;
+                    try
+                    {
+                        res = ctx.eval(SrcLoc(1, 1, "__input__", text));
+                    }
+                    catch (Error e)
+                    {
+                        e.thrown;
+                    }
+                    catch (Exception e)
+                    {
+                        e.thrown;
+                    }
+                    setOutput(res.dynamicToWidget);
+                });
+                inputBox.add(runInput);
+                inputBox.add(textInput);
+            }
+            mainBox.add(inputBox);
+            mainBox.add(host);
+        }
         mainWindow.add(mainBox);
     }
-    mainWindow.showAll();
+    window.showAll();
     Main.run();
 
     // ctx.eval(src);
