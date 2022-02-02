@@ -202,12 +202,21 @@ Widget dynamicToWidget(Dynamic dyn)
         }
         Expander ret = new Expander(arrayRepr);
         ret.setMarginStart(16);
-        Box box = new Box(Orientation.VERTICAL, 0);
-        foreach (ent; dyn.arr)
-        {
-            box.add(ent.dynamicToWidget);
-        }
-        ret.add(box);
+        bool added = false;
+        ret.addOnActivate((Expander e) {
+            if (added) 
+            {
+                return;
+            }
+            Box box = new Box(Orientation.VERTICAL, 0);
+            foreach (ent; dyn.arr)
+            {
+                box.add(ent.dynamicToWidget);
+            }
+            e.add(box);
+            e.showAll();
+            added = true;
+        });
         return ret;
     case Dynamic.Type.tab:
         string tableRepr;
@@ -221,7 +230,16 @@ Widget dynamicToWidget(Dynamic dyn)
         }
         Expander ret = new Expander(tableRepr);
         ret.setMarginStart(16);
-        ret.add(dyn.tab.tableToBox);
+        bool added = false;
+        ret.addOnActivate((Expander e) {
+            if (added) 
+            {
+                return;
+            }
+            e.add(dyn.tab.tableToBox);
+            e.showAll();
+            added = true;
+        });
         return ret;
     }
 }
@@ -294,9 +312,14 @@ void main(string[] args)
                 {
                     Table builtinTable = new Table();
                     Table globalTable = new Table();
+                    Table hiddenTabele = new Table();
                     foreach (ent; rootBases[ctx])
                     {
-                        if (names.canFind(ent.name))
+                        if (ent.name.startsWith("_purr"))
+                        {
+                            hiddenTabele.set(ent.name.dynamic, ent.val);
+                        }
+                        else if (names.canFind(ent.name))
                         {
                             builtinTable.set(ent.name.dynamic, ent.val);
                         }
@@ -316,6 +339,12 @@ void main(string[] args)
                     {
                         Box box = builtinTable.tableToBox;
                         Expander exp = new Expander("builtins");
+                        exp.add(box);
+                        globals.add(exp);
+                    }
+                    {
+                        Box box = hiddenTabele.tableToBox;
+                        Expander exp = new Expander("hidden");
                         exp.add(box);
                         globals.add(exp);
                     }
@@ -357,7 +386,7 @@ void main(string[] args)
         }
         Box mainBox = new Box(Orientation.VERTICAL, 0);
         // mainBox.packStart(mainGrid, false, false, 0);
-        mainBox.packStart(mainGrid, true, true, 0);
+        mainBox.packStart(mainGrid, false, true, 0);
         // mainBox.packStart(mainGrid, false, true, 0);
         // mainBox.packStart(mainGrid, true, true, 0);
         mainWindow.add(mainBox);
