@@ -83,8 +83,7 @@ AssocArray deserialize(AssocArray)(Json json) if (isAssociativeArray!AssocArray)
 Pointer deserialize(Pointer)(Json json)
         if (isPointer!Pointer && !is(Pointer == void*) && !std.traits.isFunctionPointer!Pointer)
 {
-    bool isNull = json.object["null"].str.to!bool;
-    if (isNull)
+    if (json.isNull)
     {
         return null;
     }
@@ -167,8 +166,12 @@ Bytecode.Flags deserialize(T : Bytecode.Flags)(Json json)
 
 Bytecode deserialize(T : Bytecode)(Json json)
 {
+    if (json.isNull)
+    {
+        return null;
+    }
     Bytecode retn = json.elems!(
-            "capture instrs constants funcs captured self args stackSize stab captab flags",
+            "capture instrs constants funcs captured args stackSize stab captab flags",
             T);
     return retn;
 }

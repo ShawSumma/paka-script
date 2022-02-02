@@ -97,10 +97,14 @@ string serialize(Bytecode.Flags flags)
     return flags.to!string.serialize;
 }
 
+Bytecode[] funcVals;
 string serialize(Bytecode func)
 {
+    if (func is null) {
+        return `null`;
+    }
     return func
-        .elems!"capture instrs constants funcs captured self args stackSize stab captab flags";
+        .elems!"capture instrs constants funcs captured args stackSize stab captab flags";
 }
 
 string serialize(T)(T[] arr)
@@ -154,9 +158,9 @@ string serialize(T)(T* ptr)
 {
     if (ptr is null)
     {
-        return `{"null": "true"}`;
+        return `null`;
     }
-    return `{"null": "false", "ptr": ` ~ serialize(*ptr) ~ `}`;
+    return `{"ptr": ` ~ serialize(*ptr) ~ `}`;
 }
 
 string serialize(Table tab)

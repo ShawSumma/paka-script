@@ -174,6 +174,89 @@ Box tableToBox(Table tab)
     return box;
 }
 
+Box bytecodeToBox(Bytecode bc)
+{
+    Box box = new Box(Orientation.VERTICAL, 0);
+    {
+        Expander cap = new Expander("closure");
+        cap.setMarginStart(16);
+        bool added = false;
+        cap.addOnActivate((Expander e) {
+            if (added)
+            {
+                return;
+            }
+            foreach (ind, captured; bc.captured)
+            {
+                Expander ex = new Expander(bc.captab[ind]);
+                ex.setMarginStart(16);
+                ex.add((*captured).dynamicToWidget);
+                cap.add(ex);
+            }
+            cap.showAll();
+            added = true;
+        });
+        box.add(cap);
+    }
+    {
+        Expander bytecode = new Expander("bytecode");
+        bytecode.setMarginStart(16);
+        bool added = false;
+        bytecode.addOnActivate((Expander e) {
+            if (added)
+            {
+                return;
+            }
+            ubyte[] bytes = bc.instrs;
+            ubyte[][] chunks = bytes.chunks(16).array;
+            string next;
+            foreach (index, chunk; chunks)
+            {
+                if (index != 0)
+                {
+                    next ~= '\n';
+                }
+                foreach (entno, ent; chunk)
+                {
+                    if (entno != 0)
+                    {
+                        next ~= ' ';
+                    }
+                    next ~= (ent % 0x10).to!string(16);
+                    next ~= (ent / 0x10 % 0x10).to!string(16);
+                }
+            }
+            TextView view = text(next);
+            view.setMarginStart(16);
+            bytecode.add(view);
+            bytecode.showAll();
+            added = true;
+        });
+        box.add(bytecode);
+    }
+    {
+        Expander cap = new Expander("constants");
+        cap.setMarginStart(16);
+        bool added = false;
+        cap.addOnActivate((Expander e) {
+            if (added)
+            {
+                return;
+            }
+            Box box = new Box(Orientation.VERTICAL, 0);
+            foreach (ind, constant; bc.constants)
+            {
+                box.add(constant.dynamicToWidget);
+            }
+            cap.add(box);
+            cap.showAll();
+            added = true;
+        });
+        box.add(cap);
+    }
+    return box;
+}
+
 Widget dynamicToWidget(Dynamic dyn)
 {
     final switch (dyn.type)
@@ -183,8 +266,6 @@ Widget dynamicToWidget(Dynamic dyn)
     case Dynamic.Type.sml:
     case Dynamic.Type.sym:
     case Dynamic.Type.str:
-    case Dynamic.Type.fun:
-    case Dynamic.Type.pro:
     case Dynamic.Type.tup:
         TextView ret = text(dyn.to!string);
         ret.setMarginStart(16);
@@ -204,7 +285,7 @@ Widget dynamicToWidget(Dynamic dyn)
         ret.setMarginStart(16);
         bool added = false;
         ret.addOnActivate((Expander e) {
-            if (added) 
+            if (added)
             {
                 return;
             }
@@ -232,7 +313,7 @@ Widget dynamicToWidget(Dynamic dyn)
         ret.setMarginStart(16);
         bool added = false;
         ret.addOnActivate((Expander e) {
-            if (added) 
+            if (added)
             {
                 return;
             }
@@ -240,6 +321,17 @@ Widget dynamicToWidget(Dynamic dyn)
             e.showAll();
             added = true;
         });
+        return ret;
+    case Dynamic.Type.fun:
+        TextView ret = text("lambda {}");
+        ret.setMarginStart(16);
+        ret.setHscrollPolicy(ScrollablePolicy.MINIMUM);
+        return ret;
+    case Dynamic.Type.pro:
+        Expander ret = new Expander("lambda {...}");
+        ret.setMarginStart(16);
+        Box box = dyn.value.fun.pro.bytecodeToBox;
+        ret.add(box);
         return ret;
     }
 }
@@ -287,22 +379,13 @@ void main(string[] args)
         Grid mainGrid = new Grid();
         mainGrid.setHexpand(true);
         mainGrid.setVexpand(true);
-        {
-            Box dataBox = new Box(Orientation.VERTICAL, 0);
-            {
-                TextView textView = new TextView();
-                textView.setMonospace(true);
-                textView.setWrapMode(WrapMode.CHAR);
-                textView.setEditable(false);
-                write1c = (char c) {
-                    TextBuffer buf = textView.getBuffer();
-                    textString ~= c;
-                    buf.setText(textString);
-                };
-                dataBox.add(textView);
-            }
-            mainGrid.attach(dataBox, 0, 7, 8, 1);
-        }
+        Box dataBox = new Box(Orientation.VERTICAL, 0);
+        TextView textView = new TextView();
+        textView.setMonospace(true);
+        textView.setWrapMode(WrapMode.CHAR);
+        textView.setEditable(false);
+        dataBox.add(textView);
+        mainGrid.attach(dataBox, 0, 7, 8, 1);
         {
             Box inputBox = new Box(Orientation.HORIZONTAL, 0);
             Box output = new Box(Orientation.VERTICAL, 0);
@@ -315,7 +398,7 @@ void main(string[] args)
                     Table hiddenTabele = new Table();
                     foreach (ent; rootBases[ctx])
                     {
-                        if (ent.name.startsWith("_purr"))
+                        if (ent.name.startsWith("_"))
                         {
                             hiddenTabele.set(ent.name.dynamic, ent.val);
                         }
@@ -351,8 +434,17 @@ void main(string[] args)
                     globals.showAll();
                 }
 
-                bool runAll(string text) {
+                bool runAll(string text)
+                {
                     textString = null;
+                    void delegate(char) last = write1c;
+                    scope (exit)
+                        write1c = last;
+                    write1c = (char c) {
+                        TextBuffer buf = textView.getBuffer();
+                        textString ~= c;
+                        buf.setText(textString);
+                    };
                     Dynamic res = Dynamic.nil;
                     try
                     {
@@ -380,12 +472,14 @@ void main(string[] args)
                 Entry textInput = new Entry();
                 Button runInput = new Button("RUN!");
                 textInput.addOnActivate((Entry ent) {
-                    if (runAll(textInput.getText())) {
+                    if (runAll(textInput.getText()))
+                    {
                         textInput.setText("");
                     }
                 });
                 runInput.addOnClicked((Button button) {
-                    if (runAll(textInput.getText())) {
+                    if (runAll(textInput.getText()))
+                    {
                         textInput.setText("");
                     }
                 });

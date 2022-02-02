@@ -88,7 +88,6 @@ final class Bytecode
     Dynamic*[] captured;
     Dynamic*[] cached;
     Dynamic[][] cacheCheck;
-    Dynamic[] self;
     string[] args;
     int[size_t] stackAt;
     size_t stackSize = 0;
@@ -119,7 +118,6 @@ final class Bytecode
         cached = other.cached;
         cacheCheck = other.cacheCheck;
         stackSize = other.stackSize;
-        self = other.self;
         args = other.args.dup;
         stab = other.stab;
         captab = other.captab;
