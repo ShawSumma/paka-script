@@ -223,7 +223,7 @@ pragma(inline, true):
             {
                 throw new Exception("str must return a string");
             }
-            return res.str;
+            return res.toString;
         }
         return rawToString;
     }

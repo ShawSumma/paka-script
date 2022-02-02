@@ -49,6 +49,8 @@ import gtk.ListBox;
 import gtk.CssProvider;
 import gtk.ScrolledWindow;
 import gtk.Paned;
+import gtk.Expander;
+import gtk.Grid;
 
 import gdk.Event;
 
@@ -120,11 +122,56 @@ void setMarginAll(Widget widget, int size)
 TextView text(string src)
 {
     TextView ret = new TextView();
-    ret.setRightMargin(8);
     ret.setMonospace(true);
     ret.setEditable(false);
     ret.getBuffer().setText(src);
     return ret;
+}
+
+Box tableToBox(Table tab)
+{
+    Box box = new Box(Orientation.VERTICAL, 0);
+    box.setMarginStart(16);
+    foreach (key, value; tab)
+    {
+        if (!key.isArray && !key.isTable)
+        {
+            string name;
+            if (key.isString)
+            {
+                name = key.str;
+            }
+            else
+            {
+                name = key.to!string;
+            }
+            Expander ent = new Expander(name);
+            ent.add(value.dynamicToWidget);
+            box.add(ent);
+        }
+    }
+    foreach (key, value; tab)
+    {
+        if (key.isArray || key.isTable)
+        {
+            Expander ent;
+            if (key.isArray)
+            {
+                ent = new Expander("[...]");
+            }
+            else
+            {
+                ent = new Expander("{...}");
+            }
+            Box pair = new Box(Orientation.HORIZONTAL, 0);
+            pair.setMarginStart(16);
+            pair.add(key.dynamicToWidget);
+            pair.add(value.dynamicToWidget);
+            ent.add(pair);
+            box.add(ent);
+        }
+    }
+    return box;
 }
 
 Widget dynamicToWidget(Dynamic dyn)
@@ -140,30 +187,41 @@ Widget dynamicToWidget(Dynamic dyn)
     case Dynamic.Type.pro:
     case Dynamic.Type.tup:
         TextView ret = text(dyn.to!string);
-        ret.setMarginLeft(16);
+        ret.setMarginStart(16);
         ret.setHscrollPolicy(ScrollablePolicy.MINIMUM);
         return ret;
     case Dynamic.Type.arr:
-        ListBox ret = new ListBox();
-        ret.setMarginLeft(16);
-        ret.add(text("[...]"));
+        string arrayRepr;
+        if (dyn.arr.length == 0)
+        {
+            arrayRepr = "[]";
+        }
+        else
+        {
+            arrayRepr = "[...]";
+        }
+        Expander ret = new Expander(arrayRepr);
+        ret.setMarginStart(16);
+        Box box = new Box(Orientation.VERTICAL, 0);
         foreach (ent; dyn.arr)
         {
-            ret.add(ent.dynamicToWidget);
+            box.add(ent.dynamicToWidget);
         }
+        ret.add(box);
         return ret;
     case Dynamic.Type.tab:
-        ListBox ret = new ListBox();
-        ret.setMarginLeft(16);
-        ret.add(text("table {...}"));
-        foreach (key, value; dyn.tab)
+        string tableRepr;
+        if (dyn.tab.length == 0)
         {
-            Box pair = new Box(Orientation.HORIZONTAL, 0);
-            pair.add(key.dynamicToWidget);
-            pair.add(text(":"));
-            pair.add(value.dynamicToWidget);
-            ret.add(pair);
+            tableRepr = "table {}";
         }
+        else
+        {
+            tableRepr = "table {...}";
+        }
+        Expander ret = new Expander(tableRepr);
+        ret.setMarginStart(16);
+        ret.add(dyn.tab.tableToBox);
         return ret;
     }
 }
@@ -178,15 +236,39 @@ void main(string[] args)
     {
         names ~= ent.name;
     }
-    string filename = ".repl";
-    scope(exit) std.file.write(filename, rootBases[ctx].serialize);
-    Main.init(args);
-    MainWindow window = new MainWindow("Paka");
-    ScrolledWindow mainWindow = new ScrolledWindow();
-    window.add(mainWindow);
+    string outdir = ".repl";
+    string saveFileName = outdir ~ "/save.json";
+    string textStringFileName = outdir ~ "/term.txt";
+    string textString;
     {
-        Box mainBox = new Box(Orientation.VERTICAL, 0);
-        string textString;
+        if (textStringFileName.exists && textStringFileName.isFile)
+        {
+            textString = textStringFileName.readText;
+        }
+        if (saveFileName.exists && saveFileName.isFile)
+        {
+            rootBases[ctx] = saveFileName.readText.parseJSON.deserialize!(Pair[]);
+        }
+    }
+    scope (exit)
+    {
+        if (outdir.exists && outdir.isFile)
+        {
+            outdir.remove;
+        }
+        if (!outdir.exists)
+        {
+            outdir.mkdir;
+        }
+        std.file.write(saveFileName, rootBases[ctx].serialize);
+        std.file.write(textStringFileName, textString);
+    }
+    Main.init(args);
+    MainWindow mainWindow = new MainWindow("Paka");
+    {
+        Grid mainGrid = new Grid();
+        mainGrid.setHexpand(true);
+        mainGrid.setVexpand(true);
         {
             Box dataBox = new Box(Orientation.VERTICAL, 0);
             {
@@ -201,46 +283,46 @@ void main(string[] args)
                 };
                 dataBox.add(textView);
             }
-            mainBox.add(dataBox);
+            mainGrid.attach(dataBox, 0, 7, 8, 1);
         }
         {
             Box inputBox = new Box(Orientation.HORIZONTAL, 0);
-            Box host = new Box(Orientation.VERTICAL, 0);
+            Box output = new Box(Orientation.VERTICAL, 0);
+            Box globals = new Box(Orientation.VERTICAL, 0);
             {
-
-                void setOutput(Args...)(Args args)
+                void loadAllGlobals()
                 {
-                    Paned done = new Paned(Orientation.HORIZONTAL);
-                    Dynamic[string] values;
+                    Table builtinTable = new Table();
+                    Table globalTable = new Table();
                     foreach (ent; rootBases[ctx])
                     {
-                        if (!ent.name.startsWith("_") && !names.canFind(ent.name))
+                        if (names.canFind(ent.name))
                         {
-                            values[ent.name] = ent.val;
+                            builtinTable.set(ent.name.dynamic, ent.val);
+                        }
+                        else
+                        {
+                            globalTable.set(ent.name.dynamic, ent.val);
                         }
                     }
-                    Box next = new Box(Orientation.VERTICAL, 0);
-                    foreach (name; values.keys.sort)
+                    globals.removeAll();
                     {
-                        Box cur = new Box(Orientation.HORIZONTAL, 0);
-                        cur.add(text(name));
-                        cur.add(text(":"));
-                        cur.add(values[name].dynamicToWidget);
-                        next.add(cur);
+                        Box box = globalTable.tableToBox;
+                        Expander exp = new Expander("globals");
+                        exp.setExpanded(true);
+                        exp.add(box);
+                        globals.add(exp);
                     }
-                    done.pack2(next, true, true);
-                    Box first = new Box(Orientation.VERTICAL, 0);
-                    static foreach (arg; args)
                     {
-                        first.add(arg);
+                        Box box = builtinTable.tableToBox;
+                        Expander exp = new Expander("builtins");
+                        exp.add(box);
+                        globals.add(exp);
                     }
-                    done.pack1(first, true, true);
-                    host.removeAll();
-                    host.add(done);
-                    mainWindow.showAll();
+                    globals.showAll();
                 }
 
-                setOutput(text(""));
+                loadAllGlobals();
 
                 Entry textInput = new Entry();
                 Button runInput = new Button("RUN!");
@@ -260,17 +342,27 @@ void main(string[] args)
                     {
                         e.thrown;
                     }
-                    setOutput(res.dynamicToWidget);
+                    loadAllGlobals();
+                    output.removeAll();
+                    output.add(res.dynamicToWidget);
+                    output.showAll();
                 });
-                inputBox.add(runInput);
-                inputBox.add(textInput);
+                inputBox.packStart(textInput, true, true, 0);
+                inputBox.packEnd(runInput, false, false, 0);
             }
-            mainBox.add(inputBox);
-            mainBox.add(host);
+            inputBox.setHexpand(true);
+            mainGrid.attach(inputBox, 0, 0, 8, 1);
+            mainGrid.attach(output, 4, 1, 4, 6);
+            mainGrid.attach(globals, 0, 1, 4, 6);
         }
+        Box mainBox = new Box(Orientation.VERTICAL, 0);
+        // mainBox.packStart(mainGrid, false, false, 0);
+        mainBox.packStart(mainGrid, true, true, 0);
+        // mainBox.packStart(mainGrid, false, true, 0);
+        // mainBox.packStart(mainGrid, true, true, 0);
         mainWindow.add(mainBox);
     }
-    window.showAll();
+    mainWindow.showAll();
     Main.run();
 
     // ctx.eval(src);
