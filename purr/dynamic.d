@@ -184,17 +184,9 @@ pragma(inline, true):
         throw new Exception("cannot call or index table");
     }
 
-    Dynamic opUnary(string op)()
+    Dynamic opUnary(string op: "-")()
     {
-        enum string opname(string op)()
-        {
-            switch (op)
-            {
-            default : assert(0);
-            case "-" : return "neg";
-            }
-        }
-        return table[dynamic(opname!op)]([this]);
+        return table[dynamic("neg")]([this]);
     }
 
     override string toString()
