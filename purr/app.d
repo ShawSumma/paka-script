@@ -351,13 +351,8 @@ void main(string[] args)
                     globals.showAll();
                 }
 
-                loadAllGlobals();
-
-                Entry textInput = new Entry();
-                Button runInput = new Button("RUN!");
-                runInput.addOnClicked((Button button) {
+                bool runAll(string text) {
                     textString = null;
-                    string text = textInput.getText();
                     Dynamic res = Dynamic.nil;
                     try
                     {
@@ -366,15 +361,33 @@ void main(string[] args)
                     catch (Error e)
                     {
                         e.thrown;
+                        return false;
                     }
                     catch (Exception e)
                     {
                         e.thrown;
+                        return false;
                     }
                     loadAllGlobals();
                     output.removeAll();
                     output.add(res.dynamicToWidget);
                     output.showAll();
+                    return true;
+                }
+
+                loadAllGlobals();
+
+                Entry textInput = new Entry();
+                Button runInput = new Button("RUN!");
+                textInput.addOnActivate((Entry ent) {
+                    if (runAll(textInput.getText())) {
+                        textInput.setText("");
+                    }
+                });
+                runInput.addOnClicked((Button button) {
+                    if (runAll(textInput.getText())) {
+                        textInput.setText("");
+                    }
                 });
                 inputBox.packStart(textInput, true, true, 0);
                 inputBox.packEnd(runInput, false, false, 0);
