@@ -74,8 +74,8 @@ final class BytecodeEmitter
         opt = new Opt;
         tc = new TypeChecker;
     }
-    
-    string[] predef(BasicBlock block, string[] checked = null, string[] nodef=null)
+
+    string[] predef(BasicBlock block, string[] checked = null, string[] nodef = null)
     {
         assert(block.exit !is null, this.to!string);
         foreach (i; bbchecked)
@@ -169,7 +169,9 @@ final class BytecodeEmitter
 
     void emit(LogicalBranch branch)
     {
-        pushInstr(func, Opcode.branch, [cast(ushort) ushort.max, cast(ushort) ushort.max]);
+        pushInstr(func, Opcode.branch, [
+                cast(ushort) ushort.max, cast(ushort) ushort.max
+            ]);
         size_t j0 = func.instrs.length - ushort.sizeof;
         size_t j1 = func.instrs.length;
         ushort t0 = emit(branch.target[0]);
@@ -210,7 +212,10 @@ final class BytecodeEmitter
     void emit(ConstBranch branch)
     {
         ushort cacheno = cast(ushort) func.cached.length;
-        pushInstr(func, Opcode.cbranch, [branch.ndeps, cacheno, cast(ushort) ushort.max, cast(ushort) ushort.max]);
+        pushInstr(func, Opcode.cbranch, [
+                branch.ndeps, cacheno, cast(ushort) ushort.max,
+                cast(ushort) ushort.max
+            ]);
         func.cached.length++;
         Dynamic[] newCheck = new Dynamic[branch.ndeps];
         foreach (ref value; newCheck)
@@ -246,7 +251,11 @@ final class BytecodeEmitter
 
     void emit(StoreInstruction store)
     {
-        if (uint* ius = store.var in func.stab.byName)
+        if (uint* ics = store.var in func.captab.byName) 
+        {
+            pushInstr(func, Opcode.cstore, [cast(ushort) *ics]);
+        }
+        else if (uint* ius = store.var in func.stab.byName)
         {
             pushInstr(func, Opcode.store, [cast(ushort)*ius]);
         }
@@ -255,7 +264,9 @@ final class BytecodeEmitter
             int us = func.doCapture(store.var);
             if (us == -1)
             {
-                pushInstr(func, Opcode.store, [cast(ushort)func.stab.define(store.var)]);
+                pushInstr(func, Opcode.store, [
+                        cast(ushort) func.stab.define(store.var)
+                    ]);
             }
             else
             {
@@ -272,38 +283,30 @@ final class BytecodeEmitter
 
     void emit(LoadInstruction load)
     {
-        bool unfound = true;
         foreach (argno, argname; func.args)
         {
             if (argname == load.var)
             {
                 pushInstr(func, Opcode.argno, [cast(ushort) argno]);
-                unfound = false;
-                load.capture = LoadInstruction.Capture.arg;
+                return;
             }
         }
-        if (unfound)
+        if (uint* cs = load.var in func.captab.byName)
         {
-            uint* us = load.var in func.stab.byName;
-            Bytecode.Lookup.Flags flags;
-            if (us !is null)
+            pushInstr(func, Opcode.loadcap, [cast(ushort)*cs]);
+        }
+        else if (uint* us = load.var in func.stab.byName)
+        {
+            pushInstr(func, Opcode.load, [cast(ushort)*us]);
+        }
+        else
+        {
+            int v = func.doCapture(load.var);
+            if (v == -1)
             {
-                pushInstr(func, Opcode.load, [cast(ushort)*us]);
-                flags = func.stab.flags(load.var);
-                unfound = false;
-                load.capture = LoadInstruction.Capture.not;
+                throw new Exception("variable not found: " ~ load.var);
             }
-            else
-            {
-                int v = func.doCapture(load.var);
-                if (v == -1) {
-                    throw new Exception("variable not found: " ~ load.var);
-                }
-                pushInstr(func, Opcode.loadcap, [cast(ushort) v]);
-                flags = func.captab.flags(v);
-                unfound = false;
-                load.capture = LoadInstruction.Capture.cap;
-            }
+            pushInstr(func, Opcode.loadcap, [cast(ushort) v]);
         }
     }
 
@@ -319,7 +322,9 @@ final class BytecodeEmitter
 
     void emit(StaticCallInstruction call)
     {
-        pushInstr(func, Opcode.scall, [cast(ushort) func.constants.length, cast(ushort) call.argc], cast(int)(1-call.argc));
+        pushInstr(func, Opcode.scall, [
+                cast(ushort) func.constants.length, cast(ushort) call.argc
+            ], cast(int)(1 - call.argc));
         func.constants ~= call.func;
     }
 
@@ -383,7 +388,7 @@ final class BytecodeEmitter
         switch (op.op)
         {
         case "index":
-            func.pushInstr(Opcode.opindexc, [cast(ushort) func.constants.length]);   
+            func.pushInstr(Opcode.opindexc, [cast(ushort) func.constants.length]);
             func.constants ~= op.rhs;
             break;
         case "add":
@@ -392,7 +397,7 @@ final class BytecodeEmitter
             {
                 func.pushInstr(Opcode.opinc, [cast(ushort) n]);
             }
-            else 
+            else
             {
                 emitDefault();
             }
@@ -403,7 +408,7 @@ final class BytecodeEmitter
             {
                 func.pushInstr(Opcode.opdec, [cast(ushort) n]);
             }
-            else 
+            else
             {
                 emitDefault();
             }

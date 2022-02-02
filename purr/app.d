@@ -178,6 +178,8 @@ void main(string[] args)
     {
         names ~= ent.name;
     }
+    string filename = ".repl";
+    scope(exit) std.file.write(filename, rootBases[ctx].serialize);
     Main.init(args);
     MainWindow window = new MainWindow("Paka");
     ScrolledWindow mainWindow = new ScrolledWindow();

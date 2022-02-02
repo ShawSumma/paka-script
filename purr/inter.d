@@ -39,6 +39,23 @@ LocalCallback exportLocalsToBaseFormback(size_t ctx, Bytecode func)
             }
             rootBases[ctx] ~= Pair(func.stab[i], v);
         }
+        outer: foreach (i, pv; func.captured)
+        {
+            if (pv is null)
+            {
+                continue outer;
+            }
+            Dynamic v = *pv;
+            foreach (ref rb; rootBases[ctx])
+            {
+                if (rb.name == func.captab[i])
+                {
+                    rb.val = v;
+                    continue outer;
+                }
+            }
+            rootBases[ctx] ~= Pair(func.captab[i], v);
+        }
     };
     return ret;
 } 
