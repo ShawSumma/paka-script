@@ -108,8 +108,6 @@ Pair[] lib2inspect()
 Pair[] lib2trig()
 {
     Pair[] ret;
-    ret ~= BindPair1!(sqrt, "sqrt");
-    ret ~= BindPair1!(cbrt, "cbrt");
     ret ~= BindPair1!(sin, "sin");
     ret ~= BindPair1!(cos, "cos");
     ret ~= BindPair1!(tan, "tan");
@@ -145,6 +143,8 @@ Pair[] lib2round()
 Pair[] lib2pow()
 {
     Pair[] ret;
+    ret ~= BindPair1!(sqrt, "sqrt");
+    ret ~= BindPair1!(cbrt, "cbrt");
     ret ~= BindPair1!(exp, "exp");
     ret ~= BindPair1!(exp2, "exp2");
     ret ~= BindPair1!(expm1, "expm2");
