@@ -16,7 +16,6 @@ Pair[] libio()
         FunctionPair!libput("put"),
         FunctionPair!libreadln("readln"),
         FunctionPair!libread("read"),
-        FunctionPair!libget("get"),
         FunctionPair!libslurp("slurp"),
         FunctionPair!libdump("dump"),
     ];
@@ -79,21 +78,6 @@ Dynamic libreadln(Args args)
         prompt = args[0].str;
     }
     return dynamic(prompt.readln[0 .. $ - 1]);
-}
-
-Dynamic libget(Args args)
-{
-    size_t count = 1;
-    if (args.length > 0)
-    {
-        count = args[0].as!size_t;
-    }
-    string ret;
-    foreach (i; 0..count)
-    {
-        ret ~= getchar;
-    }
-    return ret.dynamic;
 }
 
 Dynamic libread(Args args)
