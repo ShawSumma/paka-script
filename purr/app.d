@@ -50,7 +50,7 @@ import gtk.CssProvider;
 import gtk.ScrolledWindow;
 import gtk.Paned;
 import gtk.Expander;
-import gtk.Grid;
+import gtk.Frame;
 
 import gdk.Event;
 
@@ -163,8 +163,11 @@ void main(string[] args)
         {
             Box inputBox = new Box(Orientation.HORIZONTAL, 0);
             Box output = new Box(Orientation.VERTICAL, 0);
-            Box globals = new Box(Orientation.VERTICAL, 0);
+            ScrolledWindow globalsScrollable = new ScrolledWindow();
             {
+                Box globals = new Box(Orientation.VERTICAL, 0);
+                globalsScrollable.add(globals);
+                
                 void loadAllGlobals()
                 {
                     Table builtinTable = new Table();
@@ -263,7 +266,7 @@ void main(string[] args)
             }
             Box box = new Box(Orientation.HORIZONTAL, 0);
             box.add(output);
-            box.add(globals);
+            box.add(globalsScrollable);
             box.setHomogeneous(true);
             mainBox.packStart(box, true, true, 0);
             mainBox.packEnd(inputBox, false, false, 0);

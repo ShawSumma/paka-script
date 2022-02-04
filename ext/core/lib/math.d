@@ -61,12 +61,10 @@ template BindPair2fi(alias func, string name) {
     }
 }
 
+
 Pair[] libmath()
 {
     Pair[] ret;
-    // ret ~= FunctionPair!libabs("abs");
-    // ret ~= FunctionPair!libmin("min");
-    // ret ~= FunctionPair!libmax("max");
     ret.addLib("inspect", lib2inspect);
     ret.addLib("mod", lib2mod);
     ret.addLib("cmp", lib2cmp);
