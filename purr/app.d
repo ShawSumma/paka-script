@@ -376,16 +376,13 @@ void main(string[] args)
     Main.init(args);
     MainWindow mainWindow = new MainWindow("Paka");
     {
-        Grid mainGrid = new Grid();
-        mainGrid.setHexpand(true);
-        mainGrid.setVexpand(true);
         Box dataBox = new Box(Orientation.VERTICAL, 0);
         TextView textView = new TextView();
         textView.setMonospace(true);
         textView.setWrapMode(WrapMode.CHAR);
         textView.setEditable(false);
         dataBox.add(textView);
-        mainGrid.attach(dataBox, 0, 7, 8, 1);
+        Box mainBox = new Box(Orientation.VERTICAL, 0);
         {
             Box inputBox = new Box(Orientation.HORIZONTAL, 0);
             Box output = new Box(Orientation.VERTICAL, 0);
@@ -486,14 +483,14 @@ void main(string[] args)
                 inputBox.packStart(textInput, true, true, 0);
                 inputBox.packEnd(runInput, false, false, 0);
             }
-            inputBox.setHexpand(true);
-            mainGrid.attach(inputBox, 0, 0, 8, 1);
-            mainGrid.attach(output, 4, 1, 4, 6);
-            mainGrid.attach(globals, 0, 1, 4, 6);
+            mainBox.add(inputBox);
+            Box box = new Box(Orientation.HORIZONTAL, 0);
+            box.add(output);
+            box.add(globals);
+            box.setHomogeneous(true);
+            mainBox.add(box);
         }
-        Box mainBox = new Box(Orientation.VERTICAL, 0);
         // mainBox.packStart(mainGrid, false, false, 0);
-        mainBox.packStart(mainGrid, false, true, 0);
         // mainBox.packStart(mainGrid, false, true, 0);
         // mainBox.packStart(mainGrid, true, true, 0);
         mainWindow.add(mainBox);

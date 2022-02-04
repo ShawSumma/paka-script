@@ -278,10 +278,6 @@ final class Walker
             {
                 walkStoreIndex(call.args[0], call.args[1], args[1]);
             }
-            else if (call.form == "cache")
-            {
-                walkStore([call.args[0], args[1]]);
-            }
             else if (call.form == "do")
             {
                 walkDo(call.args[0..$-1]);
@@ -486,9 +482,6 @@ final class Walker
             break;
         case "index":
             walkIndex(args);
-            break;
-        case "cache":
-            walkConst(args);
             break;
         case "~":
             walkBinary!"cat"(args);

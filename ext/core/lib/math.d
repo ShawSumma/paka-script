@@ -80,7 +80,7 @@ Pair[] libmath()
 Pair[] lib2const()
 {
     Pair[] ret;
-    ret ~= Pair("tau", PI);
+    ret ~= Pair("tau", PI*2);
     ret ~= Pair("pi", PI);
     ret ~= Pair("e", E);
     ret ~= Pair("sqrt2", SQRT2);
