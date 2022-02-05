@@ -38,6 +38,7 @@ import core.memory;
 import core.time;
 
 import gtk.Main;
+import gtk.Label;
 import gtk.MainWindow;
 import gtk.Box;
 import gtk.Entry;
@@ -152,13 +153,11 @@ void main(string[] args)
     }
     Main.init(args);
     MainWindow mainWindow = new MainWindow("Paka");
+    mainWindow.setDefaultSize(800, 450);
     {
         Box dataBox = new Box(Orientation.VERTICAL, 0);
-        TextView textView = new TextView();
-        textView.setMonospace(true);
-        textView.setWrapMode(WrapMode.CHAR);
-        textView.setEditable(false);
-        dataBox.add(textView);
+        Label label = new Label("");
+        dataBox.add(label);
         Box mainBox = new Box(Orientation.VERTICAL, 0);
         {
             Box inputBox = new Box(Orientation.HORIZONTAL, 0);
@@ -218,10 +217,9 @@ void main(string[] args)
                     scope (exit)
                         write1c = last;
                     write1c = (char c) {
-                        write(c);
-                        TextBuffer buf = textView.getBuffer();
+                        stdout.write(c);
                         textString ~= c;
-                        buf.setText(textString);
+                        label.setLabel(textString);
                     };
                     Dynamic res = Dynamic.nil;
                     try
@@ -270,6 +268,7 @@ void main(string[] args)
             box.setHomogeneous(true);
             mainBox.packStart(box, true, true, 0);
             mainBox.packEnd(inputBox, false, false, 0);
+            mainBox.packEnd(dataBox, false, false, 0);
         }
         mainWindow.add(mainBox);
     }
