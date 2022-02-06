@@ -41,7 +41,7 @@ LocalCallback exportLocalsToBaseFormback(size_t ctx, Bytecode func)
         }
         outer: foreach (i, pv; func.captured)
         {
-            if (pv is null)
+            if (pv is null || i >= func.captab.length)
             {
                 continue outer;
             }

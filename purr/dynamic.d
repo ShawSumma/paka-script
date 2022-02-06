@@ -675,6 +675,10 @@ pragma(inline, true):
         return value.str;
     }
 
+    bool isCallable() {
+        return type == Type.fun || type == Type.pro;
+    }
+
     Value.Formable fun()
     {
         version (safe)

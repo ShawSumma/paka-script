@@ -20,7 +20,7 @@ string[] nops = [".", "not", ",", "->", "\\", "!", "#", ":"];
 /// language keywords
 string[] keywords = [
     "if", "else", "return", "def", "lambda",
-    "import", "true", "false", "nil", "table",
+    "true", "false", "nil", "table",
     "while", 
 ];
 

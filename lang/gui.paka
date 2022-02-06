@@ -1,0 +1,27 @@
+
+return table {
+    def xline(x, y, s) {
+        return table {
+            @line = [x, y, x + s, y]
+        }
+    }
+
+    def yline(x, y, s) {
+        return table {
+            @line = [x, y, x, y + s]
+        }
+    }
+
+    def square(x, y, s) {
+        return [
+            xline(x, y, s),
+            yline(x, y, s),
+            xline(x, y + s, s),
+            yline(x + s, y, s),
+        ]
+    }
+
+    @xline = xline
+    @yline = yline
+    @square = square
+}

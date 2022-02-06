@@ -54,6 +54,7 @@ import gtk.Expander;
 import gtk.Frame;
 
 import gdk.Event;
+import glib.Timeout;
 import cairo.Context;
 
 import purr.gui.repr;
@@ -121,6 +122,7 @@ void main(string[] args)
     ctx = enterCtx;
     scope (exit)
         exitCtx;
+    Dynamic guiLib = ctx.eval(SrcLoc(1, 1, "lang/gui.paka", "lang/gui.paka".readText));
     string[] names;
     foreach (ent; rootBases[ctx])
     {
@@ -153,9 +155,13 @@ void main(string[] args)
         std.file.write(saveFileName, rootBases[ctx].serialize);
         std.file.write(textStringFileName, textString);
     }
+    {
+        rootBases[ctx] ~= Pair("gui", guiLib);
+    }
     Main.init(args);
     MainWindow mainWindow = new MainWindow("Paka");
     mainWindow.setDefaultSize(800, 450);
+    Dynamic[] run;
     {
         Box termBox = new Box(Orientation.VERTICAL, 0);
         Label label = new Label("");
@@ -163,12 +169,15 @@ void main(string[] args)
         Box mainBox = new Box(Orientation.VERTICAL, 0);
         mainBox.addOnDraw((Scoped!Context context, Widget w) {
             Dynamic value = Dynamic.nil;
-            foreach (ent; rootBases[ctx]) {
-                if (ent.name == "draw") {
+            foreach (ent; rootBases[ctx])
+            {
+                if (ent.name == "draw")
+                {
                     value = ent.val;
                 }
             }
-            draw(context, value);
+            Draw draw = new Draw(context, w.getWidth, w.getHeight);
+            draw.draw(value);
             return false;
         });
         {
@@ -183,6 +192,17 @@ void main(string[] args)
                     Table hiddenTabele = new Table();
                     foreach (ent; rootBases[ctx])
                     {
+                        if (ent.name == "run")
+                        {
+                            if (ent.val.isArray)
+                            {
+                                run = ent.val.arr;
+                            }
+                            else
+                            {
+                                run = [ent.val];
+                            }
+                        }
                         if (ent.name.startsWith("_"))
                         {
                             hiddenTabele.set(ent.name.dynamic, ent.val);
@@ -231,26 +251,29 @@ void main(string[] args)
                         label.setLabel(textString);
                     };
                     Dynamic res = Dynamic.nil;
-                    // try
-                    // {
+                    try
+                    {
                         res = ctx.eval(SrcLoc(1, 1, "__input__", text));
-                    // }
-                    // catch (Error e)
-                    // {
-                    //     e.thrown;
-                    //     return false;
-                    // }
-                    // catch (Exception e)
-                    // {
-                    //     e.thrown;
-                    //     return false;
-                    // }
+                    }
+                    catch (Error e)
+                    {
+                        e.thrown;
+                        stdout.write(e.info);
+                        return false;
+                    }
+                    catch (Exception e)
+                    {
+                        e.thrown;
+                        stdout.write(e.info);
+                        return false;
+                    }
                     output.removeAll();
                     output.add(res.dynamicToWidget);
                     output.showAll();
+                    loadAllGlobals();
                     return true;
                 }
- 
+
                 loadAllGlobals();
 
                 Entry textInput = new Entry();
@@ -282,6 +305,27 @@ void main(string[] args)
             mainBox.packStart(box, true, true, 0);
             mainBox.packEnd(inputBox, false, false, 0);
             mainBox.packEnd(termBox, false, false, 0);
+            Timeout timer = new Timeout(100.dur!"msecs", () {
+                foreach (ent; run.array)
+                {
+                    try
+                    {
+                        ent(null);
+                    }
+                    catch (Error e)
+                    {
+                        e.thrown;
+                        continue;
+                    }
+                    catch (Exception e)
+                    {
+                        e.thrown;
+                        continue;
+                    }
+                }
+                mainBox.showAll();
+                return true;
+            });
         }
         mainWindow.add(mainBox);
     }
