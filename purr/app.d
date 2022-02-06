@@ -54,8 +54,10 @@ import gtk.Expander;
 import gtk.Frame;
 
 import gdk.Event;
+import cairo.Context;
 
 import purr.gui.repr;
+import purr.gui.draw;
 
 __gshared size_t ctx = size_t.max;
 
@@ -155,18 +157,25 @@ void main(string[] args)
     MainWindow mainWindow = new MainWindow("Paka");
     mainWindow.setDefaultSize(800, 450);
     {
-        Box dataBox = new Box(Orientation.VERTICAL, 0);
+        Box termBox = new Box(Orientation.VERTICAL, 0);
         Label label = new Label("");
-        dataBox.add(label);
+        termBox.add(label);
         Box mainBox = new Box(Orientation.VERTICAL, 0);
+        mainBox.addOnDraw((Scoped!Context context, Widget w) {
+            Dynamic value = Dynamic.nil;
+            foreach (ent; rootBases[ctx]) {
+                if (ent.name == "draw") {
+                    value = ent.val;
+                }
+            }
+            draw(context, value);
+            return false;
+        });
         {
             Box inputBox = new Box(Orientation.HORIZONTAL, 0);
             Box output = new Box(Orientation.VERTICAL, 0);
-            ScrolledWindow globalsScrollable = new ScrolledWindow();
+            Box globals = new Box(Orientation.VERTICAL, 0);
             {
-                Box globals = new Box(Orientation.VERTICAL, 0);
-                globalsScrollable.add(globals);
-                
                 void loadAllGlobals()
                 {
                     Table builtinTable = new Table();
@@ -222,21 +231,20 @@ void main(string[] args)
                         label.setLabel(textString);
                     };
                     Dynamic res = Dynamic.nil;
-                    try
-                    {
+                    // try
+                    // {
                         res = ctx.eval(SrcLoc(1, 1, "__input__", text));
-                    }
-                    catch (Error e)
-                    {
-                        e.thrown;
-                        return false;
-                    }
-                    catch (Exception e)
-                    {
-                        e.thrown;
-                        return false;
-                    }
-                    loadAllGlobals();
+                    // }
+                    // catch (Error e)
+                    // {
+                    //     e.thrown;
+                    //     return false;
+                    // }
+                    // catch (Exception e)
+                    // {
+                    //     e.thrown;
+                    //     return false;
+                    // }
                     output.removeAll();
                     output.add(res.dynamicToWidget);
                     output.showAll();
@@ -263,16 +271,20 @@ void main(string[] args)
                 inputBox.packEnd(runInput, false, false, 0);
             }
             Box box = new Box(Orientation.HORIZONTAL, 0);
-            box.add(output);
-            box.add(globalsScrollable);
             box.setHomogeneous(true);
+            {
+                Box dynamicBox = new Box(Orientation.HORIZONTAL, 0);
+                dynamicBox.setHomogeneous(true);
+                dynamicBox.add(output);
+                dynamicBox.add(globals);
+                box.packEnd(dynamicBox, true, true, 0);
+            }
             mainBox.packStart(box, true, true, 0);
             mainBox.packEnd(inputBox, false, false, 0);
-            mainBox.packEnd(dataBox, false, false, 0);
+            mainBox.packEnd(termBox, false, false, 0);
         }
         mainWindow.add(mainBox);
     }
     mainWindow.showAll();
     Main.run();
-
 }

@@ -142,13 +142,12 @@ Node readPostExtendImpl(TokenArray tokens, Node last)
         if (tokens.first.isOpen("["))
         {
             Node[] arr = tokens.readOpen!"[]";
-            ret = new Form("index", [last, new Form("do", arr)]);
+            ret = new Form("index", last, arr);
         }
         else if (tokens.first.isOpen("("))
         {
-            Node[][] arr = tokens.readOpen!"()";
-            Node dov = new Form("do", arr.map!(s => cast(Node) new Form("do", s)).array);
-            ret = new Form("index", last, dov);
+            Node[] arr = tokens.readOpen1!"()";
+            ret = new Form("index", last, arr);
         }
         else 
         {

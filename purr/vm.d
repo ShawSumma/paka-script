@@ -96,8 +96,6 @@ redoSame:
     while (true)
     {
         Opcode cur = instrs.eat!Opcode(index);
-        // writeln(rstack[0..stack-rstack]);
-        // writeln(cur);
         switch (cur)
         {
         default:
@@ -302,20 +300,6 @@ redoSame:
             stack--;
             Dynamic arr = *stack;
             arr[ind] = val;
-            // switch (arr.type)
-            // {
-            // case Dynamic.Type.tup:
-            //     arr.arr[ind.as!size_t] = val;
-            //     break;
-            // case Dynamic.Type.arr:
-            //     arr.arr[ind.as!size_t] = val;
-            //     break;
-            // case Dynamic.Type.tab:
-            //     arr.tab.set(ind, val);
-            //     break;
-            // default:
-            //     throw new Exception("error: cannot store at index on a " ~ arr.type.to!string);
-            // }
             break;
         case Opcode.cstore:
             Dynamic rhs = *stack;

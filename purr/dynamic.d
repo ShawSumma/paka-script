@@ -433,18 +433,18 @@ pragma(inline, true):
         }
     }
 
-    void opIndexAssign(Dynamic value, Dynamic key)
+    void opIndexAssign(Dynamic setto, Dynamic key)
     {
         switch (type)
         {
         case Type.tab:
-            tab.set(key, value);
+            tab.set(key, setto);
             break;
         case Type.tup:
-            value.arr[key.as!size_t] = value;
+            value.arr[key.as!size_t] = setto;
             break;
         case Type.arr:
-            value.arr[key.as!size_t] = value;
+            value.arr[key.as!size_t] = setto;
             break;
         default:
             throw new Exception("error: not a function: " ~ this.to!string);
@@ -687,6 +687,18 @@ pragma(inline, true):
         return value.fun;
     }
 
+    double num() 
+    {
+        version (safe)
+        {
+            if (type != Type.sml)
+            {
+                throw new Exception("expected number type (not: " ~ this.to!string ~ ")");
+            }
+        }
+        return value.sml; 
+    }
+
     T as(T)() if (isIntegral!T)
     {
         if (type == Type.sml)
@@ -855,10 +867,8 @@ pragma(inline, true):
             before.length--;
         }
     redo:
-        switch (dyn.type)
+        final switch (dyn.type)
         {
-        default:
-            return "<?" ~ dyn.type.to!string ~ ">";
         case Type.nil:
             return "nil";
         case Type.log:
