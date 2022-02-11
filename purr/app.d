@@ -20,6 +20,7 @@ import purr.fs.files;
 import purr.fs.disk;
 import purr.bytecode;
 import purr.ir.walk;
+import purr.ctx;
 
 import std.uuid;
 import std.path;
@@ -55,12 +56,10 @@ import gtk.Frame;
 
 import gdk.Event;
 import glib.Timeout;
-import cairo.Context;
+import cairo.Context: Cairo = Context;
 
 import purr.gui.repr;
 import purr.gui.draw;
-
-__gshared size_t ctx = size_t.max;
 
 void thrown(Err)(Err e)
 {
@@ -119,19 +118,17 @@ void thrown(Err)(Err e)
 
 void main(string[] args)
 {
-    ctx = enterCtx;
-    scope (exit)
-        exitCtx;
+    Context ctx = Context.base;
     Dynamic guiLib = ctx.eval(SrcLoc(1, 1, "lang/gui.paka", "lang/gui.paka".readText));
     string[] names;
-    foreach (ent; rootBases[ctx])
+    foreach (ent; ctx.rootBase)
     {
         names ~= ent.name;
     }
+    string textString;
     string outdir = ".repl";
     string saveFileName = outdir ~ "/save.json";
     string textStringFileName = outdir ~ "/term.txt";
-    string textString;
     {
         if (textStringFileName.exists && textStringFileName.isFile)
         {
@@ -139,7 +136,7 @@ void main(string[] args)
         }
         if (saveFileName.exists && saveFileName.isFile)
         {
-            rootBases[ctx] = saveFileName.readText.parseJSON.deserialize!(Pair[]);
+            ctx.rootBase = saveFileName.readText.parseJSON.deserialize!(Pair[]);
         }
     }
     scope (exit)
@@ -152,11 +149,11 @@ void main(string[] args)
         {
             outdir.mkdir;
         }
-        std.file.write(saveFileName, rootBases[ctx].serialize);
+        std.file.write(saveFileName, ctx.rootBase.serialize);
         std.file.write(textStringFileName, textString);
     }
     {
-        rootBases[ctx] ~= Pair("gui", guiLib);
+        ctx.rootBase ~= Pair("gui", guiLib);
     }
     Main.init(args);
     MainWindow mainWindow = new MainWindow("Paka");
@@ -167,9 +164,9 @@ void main(string[] args)
         Label label = new Label("");
         termBox.add(label);
         Box mainBox = new Box(Orientation.VERTICAL, 0);
-        mainBox.addOnDraw((Scoped!Context context, Widget w) {
+        mainBox.addOnDraw((Scoped!Cairo context, Widget w) {
             Dynamic value = Dynamic.nil;
-            foreach (ent; rootBases[ctx])
+            foreach (ent; ctx.rootBase)
             {
                 if (ent.name == "draw")
                 {
@@ -190,7 +187,7 @@ void main(string[] args)
                     Table builtinTable = new Table();
                     Table globalTable = new Table();
                     Table hiddenTabele = new Table();
-                    foreach (ent; rootBases[ctx])
+                    foreach (ent; ctx.rootBase)
                     {
                         if (ent.name == "run")
                         {

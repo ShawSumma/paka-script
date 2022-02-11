@@ -14,6 +14,7 @@ import purr.bytecode;
 import purr.ir.repr;
 import purr.ir.bytecode;
 import purr.ir.opt;
+import purr.ctx;
 
 __gshared bool dumpast = false;
 
@@ -23,7 +24,7 @@ final class Walker
     BasicBlock block;
     BasicBlock funcblk;
 
-    BasicBlock walkBasicBlock(Node node, size_t ctx)
+    BasicBlock walkBasicBlock(Node node, Context ctx)
     {
         if (dumpast)
         {
@@ -37,7 +38,7 @@ final class Walker
         return entry;
     }
 
-    Bytecode walkProgram(Node node, size_t ctx)
+    Bytecode walkProgram(Node node, Context ctx)
     {
         if (dumpast)
         {

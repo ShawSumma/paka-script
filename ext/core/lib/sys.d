@@ -14,6 +14,7 @@ import purr.fs.memory;
 import purr.fs.har;
 import purr.fs.files;
 import purr.fs.disk;
+import purr.ctx;
 import ext.core.lib.sysenv;
 import core.stdc.stdlib;
 import core.runtime;
@@ -48,11 +49,7 @@ Dynamic libassert(Args args)
 
 /// imports value returning what it returned
 Dynamic libimport(Args args) {
-    size_t ctx = enterCtx;
-    scope (exit)
-    {
-        exitCtx;
-    }
+    Context ctx = Context.base;
     string cdir = getcwd;
     scope (exit)
     {
@@ -68,8 +65,9 @@ Dynamic libimport(Args args) {
 /// imports value returning what it returned
 Dynamic libeval(Args args)
 {
+    Context ctx = Context.base;
     SrcLoc data = SrcLoc(1, 1, "__eval__", args[0].str);
-    Dynamic val = eval(rootBases.length - 1, data);
+    Dynamic val = eval(ctx, data);
     return val;
 }
 

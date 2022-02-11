@@ -19,17 +19,18 @@ import purr.inter;
 import purr.srcloc;
 import purr.ir.repr;
 import purr.ir.walk;
+import purr.ctx;
 
 __gshared bool dumpbytecode = false;
 __gshared bool dumpir = false;
 
 /// vm callback that sets the locals defined into the root base 
-LocalCallback exportLocalsToBaseFormback(size_t ctx, Bytecode func)
+LocalCallback exportLocalsToBaseFormback(Context ctx, Bytecode func)
 {
     LocalCallback ret = (uint index, Dynamic[] locals) {
         most: foreach (i, v; locals)
         {
-            foreach (ref rb; rootBases[ctx])
+            foreach (ref rb; ctx.rootBase)
             {
                 if (rb.name == func.stab[i])
                 {
@@ -37,7 +38,7 @@ LocalCallback exportLocalsToBaseFormback(size_t ctx, Bytecode func)
                     continue most;
                 }
             }
-            rootBases[ctx] ~= Pair(func.stab[i], v);
+            ctx.rootBase ~= Pair(func.stab[i], v);
         }
         outer: foreach (i, pv; func.captured)
         {
@@ -46,7 +47,7 @@ LocalCallback exportLocalsToBaseFormback(size_t ctx, Bytecode func)
                 continue outer;
             }
             Dynamic v = *pv;
-            foreach (ref rb; rootBases[ctx])
+            foreach (ref rb; ctx.rootBase)
             {
                 if (rb.name == func.captab[i])
                 {
@@ -54,13 +55,13 @@ LocalCallback exportLocalsToBaseFormback(size_t ctx, Bytecode func)
                     continue outer;
                 }
             }
-            rootBases[ctx] ~= Pair(func.captab[i], v);
+            ctx.rootBase ~= Pair(func.captab[i], v);
         }
     };
     return ret;
 } 
 
-Dynamic evalImpl(Walker)(size_t ctx, SrcLoc code, Args args)
+Dynamic evalImpl(Walker)(Context ctx, SrcLoc code, Args args)
 {
     Node node = code.parse;
     Walker walker = new Walker;
@@ -74,12 +75,12 @@ Dynamic evalImpl(Walker)(size_t ctx, SrcLoc code, Args args)
     return run(func, args, ctx.exportLocalsToBaseFormback(func));
 }
 
-Dynamic eval(size_t ctx, SrcLoc code, Args args=new Dynamic[0])
+Dynamic eval(Context ctx, SrcLoc code, Args args=new Dynamic[0])
 {
     return evalImpl!(purr.ir.walk.Walker)(ctx, code, args);
 }
 
-void define(T)(size_t ctx, string name, T value)
+void define(T)(Context ctx, string name, T value)
 {
     ctx.rootBase ~= Pair(name, value.toDynamic);
 }

@@ -20,15 +20,3 @@ Dynamic serialreads(Args args)
 {
     return args[0].str.parseJSON.deserializeCached;
 }
-
-Dynamic serialfreeze(Args args)
-{
-    string got = rootBase.serialize;
-    return got.dynamic;
-}
-
-Dynamic serialthaw(Args args)
-{
-    rootBase = args[0].str.parseJSON.deserialize!(Pair[]);
-    return Dynamic.nil;
-}

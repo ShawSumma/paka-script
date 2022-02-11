@@ -3,12 +3,14 @@ return table {
     def xline(x, y, s) {
         return table {
             @line = [x, y, x + s, y]
+            @width = 10
         }
     }
 
     def yline(x, y, s) {
         return table {
             @line = [x, y, x, y + s]
+            @width = 10
         }
     }
 

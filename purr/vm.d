@@ -48,15 +48,7 @@ pragma(inline, false) Dynamic run(T...)(Bytecode func, Dynamic[] args = null, T 
     {
         static assert(is(I == LocalCallback));
     }
-    Dynamic* stack = void;
-    if ((func.flags & Bytecode.Flags.isLocal) || T.length != 0)
-    {
-        stack = cast(Dynamic*) GC.malloc((func.stackSize + func.stab.length) * Dynamic.sizeof);
-    }
-    else
-    {
-        stack = cast(Dynamic*) alloca((func.stackSize + func.stab.length) * Dynamic.sizeof);
-    }
+    Dynamic* stack = cast(Dynamic*) GC.malloc((func.stackSize + func.stab.length) * Dynamic.sizeof);
     ushort index;
     Dynamic* locals;
     version (PurrErrors)

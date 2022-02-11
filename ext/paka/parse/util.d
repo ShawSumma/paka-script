@@ -5,6 +5,7 @@ import std.conv;
 import purr.srcloc;
 import purr.dynamic;
 import purr.ast.ast;
+import purr.ctx;
 import ext.paka.parse.tokens;
 
 alias UnaryOp = Node delegate(Node rhs);
@@ -17,7 +18,7 @@ string[] cmpOps = ["<", ">", "<=", ">=", "==", "!="];
 SrcLoc[] locs;
 
 /// context for static expressions
-size_t[] staticCtx;
+Context[] staticCtx;
 
 /// wraps a function of type Node function(T...)(TokenArray tokens, T args).
 /// it gets the span of tokens consumed and it gives them a span

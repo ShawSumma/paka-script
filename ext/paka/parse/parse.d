@@ -21,6 +21,7 @@ import purr.fs.files;
 import purr.bytecode;
 import purr.ir.walk;
 import purr.ast.ast;
+import purr.ctx;
 import ext.paka.built;
 import ext.paka.parse.tokens;
 import ext.paka.parse.util;
@@ -723,7 +724,7 @@ Node parseUncached(SrcLoc loc)
 {
     SrcLoc[] olocs = locs;
     locs = null;
-    staticCtx ~= enterCtx;
+    staticCtx ~= Context.base;
     scope (exit)
     {
         locs = olocs;
