@@ -28,12 +28,12 @@ import ext.paka.parse.util;
 import ext.paka.parse.op;
 
 /// reads open parens
-Node[][] readOpen(string v)(TokenArray tokens) if (v == "()")
+Node[][] readCallArgs(TokenArray tokens) 
 {
     Node[][] ret;
     Node[] args;
-    tokens.nextIs(Token.Type.open, [v[0]]);
-    while (!tokens.first.isClose([v[1]]))
+    tokens.nextIs(Token.Type.open, "(");
+    while (!tokens.first.isClose(")"))
     {
         if (tokens.first.isSemicolon)
         {
@@ -50,14 +50,14 @@ Node[][] readOpen(string v)(TokenArray tokens) if (v == "()")
             }
         }
     }
-    tokens.nextIs(Token.Type.close, [v[1]]);
+    tokens.nextIs(Token.Type.close, ")");
     ret ~= args;
     return ret;
 }
 
-Node[] readOpen1(string v)(TokenArray tokens) if (v == "()")
+Node[] readParens(TokenArray tokens) 
 {
-    Node[][] ret = tokens.readOpen!"()";
+    Node[][] ret = tokens.readCallArgs;
     if (ret.length > 1)
     {
         throw new Exception("unexpected semicolon in (...)");
@@ -66,11 +66,11 @@ Node[] readOpen1(string v)(TokenArray tokens) if (v == "()")
 }
 
 /// reads square brackets
-Node[] readOpen(string v)(TokenArray tokens) if (v == "[]")
+Node[] readSquare(TokenArray tokens) 
 {
     Node[] args;
-    tokens.nextIs(Token.Type.open, [v[0]]);
-    while (!tokens.first.isClose([v[1]]))
+    tokens.nextIs(Token.Type.open, "[");
+    while (!tokens.first.isClose("]"))
     {
         args ~= tokens.readExprBase;
         if (tokens.first.isComma)
@@ -78,26 +78,7 @@ Node[] readOpen(string v)(TokenArray tokens) if (v == "[]")
             tokens.nextIs(Token.Type.comma);
         }
     }
-    tokens.nextIs(Token.Type.close, [v[1]]);
-    return args;
-}
-
-/// reads open curly brackets
-Node[] readOpen(string v)(TokenArray tokens) if (v == "{}")
-{
-    Node[] args;
-    tokens.nextIs(Token.Type.open, [v[0]]);
-    size_t items = 0;
-    while (!tokens.first.isClose([v[1]]))
-    {
-        args ~= tokens.readExprBase;
-        items++;
-        if (tokens.first.isComma)
-        {
-            tokens.nextIs(Token.Type.comma);
-        }
-    }
-    tokens.nextIs(Token.Type.close, [v[1]]);
+    tokens.nextIs(Token.Type.close, "]");
     return args;
 }
 
@@ -112,7 +93,7 @@ void stripNewlines(TokenArray tokens)
 
 Node readPostCallExtend(TokenArray tokens, Node last)
 {
-    Node[][] args = tokens.readOpen!"()";
+    Node[][] args = tokens.readCallArgs;
     while (tokens.first.isOpen("{") || tokens.first.isOperator("->"))
     {
         args[$ - 1] ~= new Form("fun", [new Form("args"), tokens.readBlock]);
@@ -142,12 +123,12 @@ Node readPostExtendImpl(TokenArray tokens, Node last)
         tokens.nextIs(Token.Type.operator, ".");
         if (tokens.first.isOpen("["))
         {
-            Node[] arr = tokens.readOpen!"[]";
+            Node[] arr = tokens.readSquare;
             ret = new Form("index", last, arr);
         }
         else if (tokens.first.isOpen("("))
         {
-            Node[] arr = tokens.readOpen1!"()";
+            Node[] arr = tokens.readParens;
             ret = new Form("index", last, arr);
         }
         else 
@@ -395,7 +376,7 @@ Node readPostExprImpl(TokenArray tokens)
         if (tokens.first.isOpen("("))
         {
             last = new Form("fun", [
-                    new Form("args", tokens.readOpen1!"()"), tokens.readBlock
+                    new Form("args", tokens.readParens), tokens.readBlock
                     ]);
         }
         else if (tokens.first.isOpen("{") || tokens.first.isOperator("->"))
@@ -405,7 +386,7 @@ Node readPostExprImpl(TokenArray tokens)
     }
     else if (tokens.first.isOpen("("))
     {
-        Node[] nodes = tokens.readOpen1!"()";
+        Node[] nodes = tokens.readParens;
         if (nodes.length == 0)
         {
             last = new Value(Dynamic.nil);
@@ -421,7 +402,7 @@ Node readPostExprImpl(TokenArray tokens)
     }
     else if (tokens.first.isOpen("["))
     {
-        last = new Form("array", tokens.readOpen!"[]");
+        last = new Form("array", tokens.readSquare);
     }
     else if (tokens.first.isKeyword("cache"))
     {
@@ -429,7 +410,7 @@ Node readPostExprImpl(TokenArray tokens)
         Node[] checks = void;
         if (tokens.first.isOpen("("))
         {
-            checks = tokens.readOpen1!"()";
+            checks = tokens.readParens;
         }
         else
         {

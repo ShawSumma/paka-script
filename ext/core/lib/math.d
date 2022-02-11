@@ -189,7 +189,14 @@ Dynamic isEqualOr(alias func)(Args args)
     }
     double v1 = args[0].as!double;
     double v2 = args[1].as!double;
-    bool same = isClose(v1, v2, rel, abs);
+    static if (__traits(compiles, isClose(v1, v2, rel, abs)))
+    {
+        bool same = isClose(v1, v2, rel, abs);
+    }
+    else
+    {
+        bool same = approxEqual(v1, v2, rel, abs);
+    }
     if (same || func(v1, v2))
     {
         return true.dynamic;

@@ -13,7 +13,7 @@ import purr.dynamic;
 import purr.inter;
 import purr.ir.opt;
 
-alias InstrTypes = AliasSeq!(LogicalBranch, TailCallBranch, GotoBranch, ReturnBranch, ConstReturnBranch, ConstBranch, 
+alias InstrTypes = AliasSeq!(LogicalBranch, TailCallBranch, GotoBranch, ReturnBranch, ConstReturnBranch, 
         BuildTupleInstruction,BuildArrayInstruction, BuildTableInstruction, CallInstruction, StaticCallInstruction, PushInstruction,
         OperatorInstruction, ConstOperatorInstruction, LambdaInstruction, PopInstruction,
         StoreInstruction, StoreIndexInstruction, LoadInstruction, RecInstruction, ArgNumberInstruction);
@@ -114,25 +114,6 @@ class LogicalBranch : Branch
     {
         string ret;
         ret ~= "branch " ~ target[0].name ~ " " ~ target[1].name ~ " \n";
-        return ret;
-    }
-}
-
-
-class ConstBranch : Branch
-{
-    ushort ndeps;
-
-    this(T)(BasicBlock ifeval, BasicBlock ifconst, T depCount)
-    {
-        target = [ifeval, ifconst];
-        ndeps = cast(ushort) depCount;
-    }
-
-    override string toString()
-    {
-        string ret;
-        ret ~= "const-branch " ~ target[0].name ~ " " ~ target[1].name ~ " \n";
         return ret;
     }
 }

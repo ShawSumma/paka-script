@@ -14,20 +14,16 @@ import purr.dynamic;
 import purr.parse;
 import purr.inter;
 import purr.io;
-import purr.serial.fromjson;
-import purr.serial.tojson;
 import purr.fs.files;
 import purr.fs.disk;
 import purr.bytecode;
 import purr.ir.walk;
 import purr.ctx;
-
 import std.uuid;
 import std.path;
 import std.array;
 import std.file;
 import std.json;
-import std.range;
 import std.ascii;
 import std.algorithm;
 import std.process;
@@ -37,29 +33,330 @@ import std.getopt;
 import std.datetime.stopwatch;
 import core.memory;
 import core.time;
+import core.stdc.stdlib;
 
-import gtk.Main;
-import gtk.Label;
-import gtk.MainWindow;
-import gtk.Box;
-import gtk.Entry;
-import gtk.Widget;
-import gtk.Button;
-import gtk.TextView;
-import gtk.TextBuffer;
-import gtk.ListBox;
-import gtk.CssProvider;
-import gtk.ScrolledWindow;
-import gtk.Paned;
-import gtk.Expander;
-import gtk.Frame;
+extern (C) __gshared string[] rt_options = [];
 
-import gdk.Event;
-import glib.Timeout;
-import cairo.Context: Cairo = Context;
+alias Thunk = void delegate();
 
-import purr.gui.repr;
-import purr.gui.draw;
+__gshared Context ctx;
+__gshared Dynamic[] dynamics;
+__gshared Dynamic[] fileArgs;
+Thunk cliFileHandler(immutable string filename)
+{
+    return {
+        string oldLang = langNameDefault;
+        scope (exit)
+        {
+            langNameDefault = oldLang;
+        }
+        if (filename.endsWith(".paka"))
+        {
+            langNameDefault = "paka";
+        }
+        if (filename.endsWith(".pn"))
+        {
+            langNameDefault = "passerine";
+        }
+        SrcLoc code = SrcLoc(1, 1, filename, filename.readText);
+        string cdir = getcwd;
+        Dynamic retval;
+        scope (exit)
+        {
+            cdir.chdir;
+            fileArgs = null;
+        }
+        filename.dirName.chdir;
+        retval = ctx.eval(code, fileArgs);
+        dynamics ~= retval;
+    };
+}
+
+Thunk cliArgHandler(immutable string arg)
+{
+    return { fileArgs ~= arg.dynamic; };
+}
+
+Thunk cliFormHandler(immutable string code)
+{
+    return {
+        Dynamic got = dynamics[$ - 1]([
+                ctx.eval(SrcLoc(1, 1, "__main__", code))
+                ]);
+        dynamics.length--;
+        dynamics ~= got;
+    };
+}
+
+Thunk cliEvalHandler(immutable string code)
+{
+    return {
+        scope (exit)
+        {
+            fileArgs = null;
+        }
+        Dynamic got = ctx.eval(SrcLoc(1, 1, "__main__", code), fileArgs);
+        dynamics ~= got;
+    };
+}
+
+Thunk cliParseHandler(immutable string code)
+{
+    return {
+        SrcLoc loc = SrcLoc(1, 1, "__main__", code);
+        Node res = loc.parse;
+    };
+}
+
+Thunk cliValidateHandler(immutable string code)
+{
+    return {
+        SrcLoc loc = SrcLoc(1, 1, "__main__", code);
+        Node node = loc.parse;
+        Walker walker = new Walker;
+        BasicBlock func = walker.walkBasicBlock(node, ctx);
+    };
+}
+
+Thunk cliCompileHandler(immutable string code)
+{
+    return {
+        SrcLoc loc = SrcLoc(1, 1, "__main__", code);
+        Node node = loc.parse;
+        Walker walker = new Walker;
+        Bytecode func = walker.walkProgram(node, ctx);
+    };
+}
+
+Thunk cliLangHandler(immutable string langname)
+{
+    return { langNameDefault = langname; };
+}
+
+Thunk cliBytecodeHandler()
+{
+    return { dumpbytecode = !dumpbytecode; };
+}
+
+Thunk cliAstHandler()
+{
+    return { dumpast = !dumpast; };
+}
+
+Thunk cliIrHandler()
+{
+    return { dumpir = !dumpir; };
+}
+
+Thunk cliEchoHandler()
+{
+    return {
+        if (dynamics[$ - 1].isString)
+        {
+            writeln(dynamics[$ - 1].str);
+        }
+        else
+        {
+            writeln(dynamics[$ - 1].to!string);
+        }
+        dynamics.length--;
+    };
+}
+
+Thunk cliIntoHandler(string filename)
+{
+    return {
+        File file = File(filename, "w");
+        if (dynamics[$ - 1].isString)
+        {
+            file.write(dynamics[$ - 1].str);
+        }
+        else
+        {
+            file.write(dynamics[$ - 1].to!string);
+        }
+        dynamics.length--;
+    };
+}
+
+__gshared Dynamic[] bases = null;
+
+Thunk cliReplHandler()
+{
+    return {
+        bases = [];
+        ctx.rootBase.addLib("repl", librepl);
+        while (true)
+        {
+        before:
+            string prompt = "(" ~ to!string(bases.length + 1) ~ ")> ";
+            string line = null;
+            line = readln(prompt);
+            while (line.length > 0)
+            {
+                if (line[0].isWhite)
+                {
+                    line = line[1 .. $];
+                }
+                else if (line[$ - 1].isWhite)
+                {
+                    line = line[0 .. $ - 1];
+                }
+                else
+                {
+                    break;
+                }
+            }
+            SrcLoc code = SrcLoc(bases.length, 1, "__main__", line);
+            if (code.src.length == 0)
+            {
+                break;
+            }
+            Dynamic res = ctx.eval(code);
+            if (!res.isNil)
+            {
+                writeln(res);
+            }
+            bases ~= ctx.baseObject().dynamic;
+        }
+    };
+}
+
+Thunk cliTimeHandler(Thunk next)
+{
+    return {
+        StopWatch watch = StopWatch(AutoStart.no);
+        watch.start();
+        next();
+        watch.stop();
+        writeln(watch.peek);
+    };
+}
+
+Thunk cliBenchHandler(size_t n, Thunk next)
+{
+    return {
+        Duration all;
+        foreach (_; 0..n)
+        {
+            StopWatch watch = StopWatch(AutoStart.no);
+            watch.start();
+            next();
+            watch.stop();
+            all += watch.peek;
+        }
+        writeln("per run: ", all / n);
+    };
+}
+
+Thunk cliRepeatHandler(size_t n, Thunk next)
+{
+    return {
+        foreach (_; 0..n)
+        {
+            next();
+        }
+    };
+}
+
+Thunk cliOptHandler(size_t n)
+{
+    return {
+        defaultOptLevel = n;
+    };
+}
+
+void domain(string[] args)
+{
+    args = args[1 .. $];
+    Thunk[] todo;
+    langNameDefault = "paka";
+    ctx = Context.base;
+    foreach_reverse (arg; args)
+    {
+        string[] parts = arg.split("=").array;
+        string part1()
+        {
+            assert(parts.length != 0);
+            if (parts.length == 1)
+            {
+                throw new Exception(parts[0] ~ " takes an argument using " ~ parts[0]  ~"=argument");
+            }
+            return parts[1..$].join("=");
+        }
+        bool runNow = parts[0][$-1] == ':';
+        scope(exit)
+        {
+            if (runNow)
+            {
+                Thunk last = todo[$-1];
+                todo.length--;
+                last();
+            }
+        }
+        if (runNow)
+        {
+            parts[0].length--;
+        }
+        switch (parts[0])
+        {
+        default:
+            throw new Exception("use --file=" ~ parts[0]);
+        case "--time":
+            todo[$-1] = todo[$-1].cliTimeHandler;
+            break;
+        case "--repeat":
+            todo[$-1] = cliRepeatHandler(part1.to!size_t, todo[$-1]);
+            break;
+        case "--bench":
+            todo[$-1] = cliBenchHandler(part1.to!size_t, todo[$-1]);
+            break;
+        case "--repl":
+            todo ~= cliReplHandler;
+            break;
+        case "--file":
+            todo ~= part1.cliFileHandler;
+            break;
+        case "--arg":
+            todo ~= part1.cliArgHandler;
+            break;
+        case "--parse":
+            todo ~= part1.cliParseHandler;
+            break;
+        case "--compile":
+            todo ~= part1.cliCompileHandler;
+            break;
+        case "--eval":
+            todo ~= part1.cliEvalHandler;
+            break;
+        case "--lang":
+            todo ~= part1.cliLangHandler;
+            break;
+        case "--into":
+            todo ~= part1.cliIntoHandler;
+            break;
+        case "--bytecode":
+            todo ~= cliBytecodeHandler;
+            break;
+        case "--opt":
+            todo ~= cliOptHandler(part1.to!size_t);
+            break;
+        case "--ast":
+            todo ~= cliAstHandler;
+            break;
+        case "--ir":
+            todo ~= cliIrHandler;
+            break;
+        case "--echo":
+            todo ~= cliEchoHandler;
+            break;
+        }
+    }
+    foreach_reverse (fun; todo)
+    {
+        fun();
+    }
+}
 
 void thrown(Err)(Err e)
 {
@@ -88,7 +385,7 @@ void thrown(Err)(Err e)
     {
         if (i == 0)
         {
-            trace ~= "on line ";
+            trace ~= "  on line ";
         }
         else
         {
@@ -114,218 +411,28 @@ void thrown(Err)(Err e)
     writeln(trace);
     writeln(e.msg);
     writeln;
+    throw e;
+    exit(1);
+}
+
+/// the main function that handles runtime errors
+void trymain(string[] args)
+{
+    try
+    {
+        domain(args);
+    }
+    catch (Error e)
+    {
+        e.thrown;
+    }
+    catch (Exception e)
+    {
+        e.thrown;
+    }
 }
 
 void main(string[] args)
 {
-    Context ctx = Context.base;
-    Dynamic guiLib = ctx.eval(SrcLoc(1, 1, "lang/gui.paka", "lang/gui.paka".readText));
-    string[] names;
-    foreach (ent; ctx.rootBase)
-    {
-        names ~= ent.name;
-    }
-    string textString;
-    string outdir = ".repl";
-    string saveFileName = outdir ~ "/save.json";
-    string textStringFileName = outdir ~ "/term.txt";
-    {
-        if (textStringFileName.exists && textStringFileName.isFile)
-        {
-            textString = textStringFileName.readText;
-        }
-        if (saveFileName.exists && saveFileName.isFile)
-        {
-            ctx.rootBase = saveFileName.readText.parseJSON.deserialize!(Pair[]);
-        }
-    }
-    scope (exit)
-    {
-        if (outdir.exists && outdir.isFile)
-        {
-            outdir.remove;
-        }
-        if (!outdir.exists)
-        {
-            outdir.mkdir;
-        }
-        std.file.write(saveFileName, ctx.rootBase.serialize);
-        std.file.write(textStringFileName, textString);
-    }
-    {
-        ctx.rootBase ~= Pair("gui", guiLib);
-    }
-    Main.init(args);
-    MainWindow mainWindow = new MainWindow("Paka");
-    mainWindow.setDefaultSize(800, 450);
-    Dynamic[] run;
-    {
-        Box termBox = new Box(Orientation.VERTICAL, 0);
-        Label label = new Label("");
-        termBox.add(label);
-        Box mainBox = new Box(Orientation.VERTICAL, 0);
-        mainBox.addOnDraw((Scoped!Cairo context, Widget w) {
-            Dynamic value = Dynamic.nil;
-            foreach (ent; ctx.rootBase)
-            {
-                if (ent.name == "draw")
-                {
-                    value = ent.val;
-                }
-            }
-            Draw draw = new Draw(context, w.getWidth, w.getHeight);
-            draw.draw(value);
-            return false;
-        });
-        {
-            Box inputBox = new Box(Orientation.HORIZONTAL, 0);
-            Box output = new Box(Orientation.VERTICAL, 0);
-            Box globals = new Box(Orientation.VERTICAL, 0);
-            {
-                void loadAllGlobals()
-                {
-                    Table builtinTable = new Table();
-                    Table globalTable = new Table();
-                    Table hiddenTabele = new Table();
-                    foreach (ent; ctx.rootBase)
-                    {
-                        if (ent.name == "run")
-                        {
-                            if (ent.val.isArray)
-                            {
-                                run = ent.val.arr;
-                            }
-                            else
-                            {
-                                run = [ent.val];
-                            }
-                        }
-                        if (ent.name.startsWith("_"))
-                        {
-                            hiddenTabele.set(ent.name.dynamic, ent.val);
-                        }
-                        else if (names.canFind(ent.name))
-                        {
-                            builtinTable.set(ent.name.dynamic, ent.val);
-                        }
-                        else
-                        {
-                            globalTable.set(ent.name.dynamic, ent.val);
-                        }
-                    }
-                    globals.removeAll();
-                    {
-                        Widget box = globalTable.tableToWidget;
-                        Expander exp = new Expander("globals");
-                        exp.setExpanded(true);
-                        exp.add(box);
-                        globals.add(exp);
-                    }
-                    {
-                        Widget box = builtinTable.tableToWidget;
-                        Expander exp = new Expander("builtins");
-                        exp.add(box);
-                        globals.add(exp);
-                    }
-                    {
-                        Widget box = hiddenTabele.tableToWidget;
-                        Expander exp = new Expander("hidden");
-                        exp.add(box);
-                        globals.add(exp);
-                    }
-                    globals.showAll();
-                }
-
-                bool runAll(string text)
-                {
-                    textString = null;
-                    void delegate(char) last = write1c;
-                    scope (exit)
-                        write1c = last;
-                    write1c = (char c) {
-                        stdout.write(c);
-                        textString ~= c;
-                        label.setLabel(textString);
-                    };
-                    Dynamic res = Dynamic.nil;
-                    try
-                    {
-                        res = ctx.eval(SrcLoc(1, 1, "__input__", text));
-                    }
-                    catch (Error e)
-                    {
-                        e.thrown;
-                        stdout.write(e.info);
-                        return false;
-                    }
-                    catch (Exception e)
-                    {
-                        e.thrown;
-                        stdout.write(e.info);
-                        return false;
-                    }
-                    output.removeAll();
-                    output.add(res.dynamicToWidget);
-                    output.showAll();
-                    loadAllGlobals();
-                    return true;
-                }
-
-                loadAllGlobals();
-
-                Entry textInput = new Entry();
-                Button runInput = new Button("RUN!");
-                textInput.addOnActivate((Entry ent) {
-                    if (runAll(textInput.getText()))
-                    {
-                        textInput.setText("");
-                    }
-                });
-                runInput.addOnClicked((Button button) {
-                    if (runAll(textInput.getText()))
-                    {
-                        textInput.setText("");
-                    }
-                });
-                inputBox.packStart(textInput, true, true, 0);
-                inputBox.packEnd(runInput, false, false, 0);
-            }
-            Box box = new Box(Orientation.HORIZONTAL, 0);
-            box.setHomogeneous(true);
-            {
-                Box dynamicBox = new Box(Orientation.HORIZONTAL, 0);
-                dynamicBox.setHomogeneous(true);
-                dynamicBox.add(output);
-                dynamicBox.add(globals);
-                box.packEnd(dynamicBox, true, true, 0);
-            }
-            mainBox.packStart(box, true, true, 0);
-            mainBox.packEnd(inputBox, false, false, 0);
-            mainBox.packEnd(termBox, false, false, 0);
-            Timeout timer = new Timeout(100.dur!"msecs", () {
-                foreach (ent; run.array)
-                {
-                    try
-                    {
-                        ent(null);
-                    }
-                    catch (Error e)
-                    {
-                        e.thrown;
-                        continue;
-                    }
-                    catch (Exception e)
-                    {
-                        e.thrown;
-                        continue;
-                    }
-                }
-                mainBox.showAll();
-                return true;
-            });
-        }
-        mainWindow.add(mainBox);
-    }
-    mainWindow.showAll();
-    Main.run();
+    trymain(args);
 }

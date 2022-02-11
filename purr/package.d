@@ -12,8 +12,6 @@ public import purr.dynamic;
 public import purr.parse;
 public import purr.inter;
 public import purr.io;
-public import purr.serial.fromjson;
-public import purr.serial.tojson;
 public import purr.fs.files;
 public import purr.fs.disk;
 public import purr.bytecode;

@@ -270,5 +270,5 @@ enum int[Opcode] opSizes = [
         : 0, Opcode.opmul : -1, Opcode.opdiv : -1, Opcode.opmod : -1,
         Opcode.load : 1, Opcode.loadcap : 1,
         Opcode.retval : 0, Opcode.retconst : 0, Opcode.retnone : 0, Opcode.iftrue : -1,
-        Opcode.iffalse : -1, Opcode.branch : -1, Opcode.cbranch : 0, Opcode.gocache : 0, Opcode.jump : 0, Opcode.argno : 1
+        Opcode.iffalse : -1, Opcode.branch : -1, Opcode.gocache : 0, Opcode.jump : 0, Opcode.argno : 1
     ];

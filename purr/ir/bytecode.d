@@ -209,31 +209,6 @@ final class BytecodeEmitter
         func.constants ~= branch.value;
     }
 
-    void emit(ConstBranch branch)
-    {
-        ushort cacheno = cast(ushort) func.cached.length;
-        pushInstr(func, Opcode.cbranch, [
-                branch.ndeps, cacheno, cast(ushort) ushort.max,
-                cast(ushort) ushort.max
-            ]);
-        func.cached.length++;
-        Dynamic[] newCheck = new Dynamic[branch.ndeps];
-        foreach (ref value; newCheck)
-        {
-            value = gensym;
-        }
-        func.cacheCheck ~= newCheck;
-        size_t j0 = func.instrs.length - ushort.sizeof;
-        size_t j1 = func.instrs.length;
-        ushort t0 = emit(branch.target[0]);
-        pushInstr(func, Opcode.gocache, [cacheno, cast(ushort) ushort.max]);
-        size_t jc = func.instrs.length;
-        ushort t1 = emit(branch.target[1]);
-        func.modifyInstr(j0, t0);
-        func.modifyInstr(j1, t1);
-        func.modifyInstr(jc, t1);
-    }
-
     void emit(BuildArrayInstruction arr)
     {
         pushInstr(func, Opcode.array, [cast(ubyte) arr.argc], cast(int)(1 - arr.argc));

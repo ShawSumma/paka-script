@@ -7,7 +7,6 @@ import std.algorithm;
 import std.json;
 import std.traits;
 import core.memory;
-import core.stdc.stdlib;
 import purr.srcloc;
 import purr.dynamic;
 import purr.bytecode;
@@ -18,6 +17,12 @@ version = PurrErrors;
 DebugFrame[] debugFrames;
 
 alias LocalCallback = void delegate(uint index, Dynamic[] locals);
+
+Dynamic* xstack;
+
+static this() {
+    xstack = (new Dynamic[2 ^^ 16]).ptr;
+}
 
 enum string[2][] cmpMap()
 {
@@ -41,6 +46,8 @@ pragma(inline, true) T peek(T, A)(ubyte* bytes, A index)
     return *cast(T*)(bytes + index);
 }
 
+pragma(mangle, "alloca") void* stackAlloc(size_t size);
+
 size_t depth;
 pragma(inline, false) Dynamic run(T...)(Bytecode func, Dynamic[] args = null, T rest = T.init)
 {
@@ -48,7 +55,20 @@ pragma(inline, false) Dynamic run(T...)(Bytecode func, Dynamic[] args = null, T 
     {
         static assert(is(I == LocalCallback));
     }
-    Dynamic* stack = cast(Dynamic*) GC.malloc((func.stackSize + func.stab.length) * Dynamic.sizeof);
+    Dynamic* stack = void;
+    if ((func.flags & Bytecode.Flags.isLocal) || T.length != 0)
+    {
+        stack = cast(Dynamic*) GC.malloc((func.stackSize + func.stab.length) * Dynamic.sizeof);
+    }
+    else
+    {
+        stack = xstack;
+        xstack += func.stackSize + func.stab.length;
+    }
+    scope(exit)
+    {
+        xstack = stack;
+    }
     ushort index;
     Dynamic* locals;
     version (PurrErrors)
@@ -58,9 +78,9 @@ pragma(inline, false) Dynamic run(T...)(Bytecode func, Dynamic[] args = null, T 
             debugFrames ~= new DebugFrame(func, index, locals);
         }
     }
-    scope (success)
+    static foreach (callbackIndex, callback; rest)
     {
-        static foreach (callbackIndex, callback; rest)
+        scope (success)
         {
             static if (is(typeof(callback) == LocalCallback))
             {
@@ -224,7 +244,7 @@ redoSame:
             assert(func.cacheCheck[cacheNumber].length == ndeps);
             foreach (key, value; func.cacheCheck[cacheNumber])
             {
-                if (!stack[key].isSameObject(value))
+                if (stack[key] is value)
                 {
                     func.cached[cacheNumber] = null;
                     break;

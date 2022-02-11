@@ -297,8 +297,8 @@ struct DynamicImpl
     {
         bool log;
         double sml;
-        string* str;
-        Dynamic* arr;
+        string str;
+        Dynamic[] arr;
         Table tab;
         alias Formable = FormableUnion;
         union FormableUnion
@@ -311,7 +311,6 @@ struct DynamicImpl
     }
 
     Type type = void;
-    uint data = void;
     Value value = void;
 
 pragma(inline, true):
@@ -353,15 +352,13 @@ pragma(inline, true):
 
     this(string str)
     {
-        value.str = cast(string*) GC.calloc(string.sizeof);
-        *value.str = str;
+        value.str = str;
         type = Type.str;
     }
 
     this(Array arr)
     {
-        value.arr = arr.ptr;
-        data = cast(uint) arr.length;
+        value.arr = arr;
         type = Type.arr;
     }
 
@@ -397,7 +394,6 @@ pragma(inline, true):
     void set(Dynamic other)
     {
         type = other.type;
-        data = other.data;
         value = other.value;
     }
 
@@ -495,7 +491,7 @@ pragma(inline, true):
             }
             return 1;
         case Type.str:
-            return cmp(*value.str, other.str);
+            return cmp(value.str, other.str);
         }
     }
 
@@ -524,19 +520,19 @@ pragma(inline, true):
                 return 3 + cast(size_t)-value.sml;
             }
         case Type.sym:
-            return (*value.str).hashOf;
+            return value.str.hashOf;
         case Type.str:
-            return (*value.str).hashOf;
+            return value.str.hashOf;
         case Type.tup:
-            return cast(size_t) data + 1 << 32;
+            return size_t.max - 4;
         case Type.arr:
-            return cast(size_t) data + 1 << 33;
+            return size_t.max - 5;
         case Type.tab:
             return value.tab.table.length + 1 << 34;
         case Type.fun:
-            return size_t.max - 2;
-        case Type.pro:
             return size_t.max - 3;
+        case Type.pro:
+            return size_t.max - 2;
         }
     }
 
@@ -562,9 +558,9 @@ pragma(inline, true):
         case Type.sml:
             return value.sml == other.value.sml;
         case Type.sym:
-            return cast(void*) value.str == cast(void*) other.value.str;
+            return value.str ==other.value.str;
         case Type.str:
-            return cast(void*) value.str == cast(void*) other.value.str;
+            return value.str == other.value.str;
         case Type.tup:
             return cast(void*) value.arr == cast(void*) other.value.arr;
         case Type.arr:
@@ -636,7 +632,7 @@ pragma(inline, true):
                 throw new Exception("expected string type (not: " ~ this.to!string ~ ")");
             }
         }
-        return *value.str;
+        return value.str;
     }
 
     Array arr()
@@ -648,7 +644,7 @@ pragma(inline, true):
                 throw new Exception("expected array type (not: " ~ this.to!string ~ ")");
             }
         }
-        return value.arr[0 .. data];
+        return value.arr;
     }
 
     Table tab()
@@ -661,18 +657,6 @@ pragma(inline, true):
             }
         }
         return value.tab;
-    }
-
-    string* strPtr()
-    {
-        version (safe)
-        {
-            if (type != Type.str)
-            {
-                throw new Exception("expected string type (not: " ~ this.to!string ~ ")");
-            }
-        }
-        return value.str;
     }
 
     bool isCallable() {
@@ -773,9 +757,9 @@ pragma(inline, true):
         case Type.log:
             return cmp(a.value.log, b.value.log);
         case Type.sym:
-            return cmp(*a.value.str, *b.value.str);
+            return cmp(a.value.str, b.value.str);
         case Type.str:
-            return cmp(*a.value.str, *b.value.str);
+            return cmp(a.value.str, b.value.str);
         case Type.sml:
             return cmp(a.value.sml, b.value.sml);
         case Type.tup:
@@ -884,7 +868,7 @@ pragma(inline, true):
             }
             return dyn.value.sml.to!string;
         case Type.sym:
-            return ':' ~ *dyn.value.str;
+            return ':' ~ dyn.value.str;
         case Type.str:
             return '"' ~ dyn.str ~ '"';
         case Type.tup:

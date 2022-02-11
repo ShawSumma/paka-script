@@ -367,26 +367,6 @@ final class Walker
         emit(new OperatorInstruction(op));
     }
 
-    void walkConst(Node[] args)
-    {
-        BasicBlock oper = new BasicBlock;
-        BasicBlock after = new BasicBlock;
-        foreach (check; args[1..$])
-        {
-            walk(check);
-        }
-        emitDefault(new ConstBranch(oper, after, args.length - 1));
-        block = oper;
-        walk(args[0]);
-        emitDefault(new GotoBranch());
-        block = after;
-    }
-
-    // void walkConst(Node[] args)
-    // {
-    //     walk(args[0]);
-    // }
-
     void walkTuple(Node[] args)
     {
         foreach (i; args)
