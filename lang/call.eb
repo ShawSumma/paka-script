@@ -1,0 +1,13 @@
+
+print (n) ?
+add (x y) ?
+
+print-add-one (x)
+do  print x
+    add x 1
+
+call (f (x) x) f x 
+
+stuff (g (f (x) x) f (x) x) g f x
+
+_start () print stuff call print-add-one 10

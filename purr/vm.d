@@ -21,7 +21,7 @@ alias LocalCallback = void delegate(uint index, Dynamic[] locals);
 Dynamic* xstack;
 
 static this() {
-    xstack = (new Dynamic[2 ^^ 16]).ptr;
+    xstack = (new Dynamic[2 ^^ 20]).ptr;
 }
 
 enum string[2][] cmpMap()
@@ -48,9 +48,9 @@ pragma(inline, true) T peek(T, A)(ubyte* bytes, A index)
 
 pragma(mangle, "alloca") void* stackAlloc(size_t size);
 
-size_t depth;
 pragma(inline, false) Dynamic run(T...)(Bytecode func, Dynamic[] args = null, T rest = T.init)
 {
+    assert(func.instrs);
     static foreach (I; T)
     {
         static assert(is(I == LocalCallback));

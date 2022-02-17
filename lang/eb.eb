@@ -1,0 +1,16 @@
+
+print (x) ?
+
+add(x y) ?
+sub(x y) ?
+mul(x y) ?
+div(x y) ?
+mod(x y) ?
+lt (x y) ?
+gt (x y) ?
+eq (x y) ?
+neq(x y) ?
+lte(x y) ?
+gte(x y) ?
+
+id(x) ?

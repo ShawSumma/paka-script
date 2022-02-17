@@ -1,0 +1,17 @@
+
+print = io.print
+
+add(x, y) = x + y
+sub(x, y) = x - y
+mul(x, y) = x * y
+div(x, y) = x / y
+mod(x, y) = x % y
+
+eq(x, y) = x == y
+neq(x, y) = x != y
+lt(x, y) = x < y
+gt(x, y) = x > y
+lte(x, y) = x <= y
+gte(x, y) = x >= y
+
+id(x) = x

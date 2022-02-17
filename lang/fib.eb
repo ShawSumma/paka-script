@@ -1,0 +1,15 @@
+
+print (n) ?
+add (x y) ?
+sub (x y) ?
+lt (x y) ?
+
+fib (n)
+if lt n 2
+    n
+    add fib sub n 2
+        fib sub n 1
+
+main () print fib 35
+
+= main
